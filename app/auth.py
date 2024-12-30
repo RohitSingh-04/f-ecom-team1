@@ -8,6 +8,7 @@ from itsdangerous import SignatureExpired
 from app import URL_SERIALIZER
 from flask_login import current_user
 from .forms import LoginForm, RegistrationForm, ForgetPasswordForm, ResetPasswordForm, ChangePasswordForm
+from .constants import STATES_CITY
 
 auth = Blueprint('auth', __name__)
 
@@ -31,16 +32,22 @@ def login():
 @auth.route('/signup', methods=['GET', 'POST'])
 def signup():
     form = RegistrationForm()
+    if form.state.data in STATES_CITY:
+        form.city.choices = [(city, city) for city in STATES_CITY[form.state.data]]
+    else:
+        form.city.choices = []
     if form.validate_on_submit():
         hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
         new_user = User(
             firstname=form.firstname.data,
             lastname=form.lastname.data,
             email=form.email.data,
-            address=form.address.data,
+            address_line_1=form.address.data,
             role=form.role.data,
             pincode=form.pincode.data,
-            password=hashed_password
+            password=hashed_password,
+            state = form.state.data,
+            city = form.city.data
         )
 
         try:
@@ -54,7 +61,7 @@ def signup():
             print(e)
             flash('Signup failed! An error occurred!', 'danger')
 
-    return render_template('signup.html', form=form)
+    return render_template('signup.html', form=form, STATES_CITY = STATES_CITY)
 
 @auth.route('/logout')
 @login_required

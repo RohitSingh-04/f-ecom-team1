@@ -79,10 +79,10 @@
                         </ul>
                         {% endif %}
                     </p>
-
+                    
                     <p>
-                        <label for="address">Address<span>*</span></label>
-                        {{ form.address(class_="form-control", placeholder="Your Address") }}
+                        <label for="address">Address Line 1<span>*</span></label>
+                        {{ form.address(class_="form-control", placeholder="Address Line 1") }}
                         {% if form.address.errors %}
                         <ul>
                             {% for error in form.address.errors %}
@@ -92,6 +92,29 @@
                         {% endif %}
                     </p>
 
+                    <p>
+                        <label for="state">State<span>*</span></label>
+                        {{ form.state(class_="form-control", placeholder="State") }}
+                        {% if form.state.errors %}
+                        <ul>
+                            {% for error in form.state.errors %}
+                            <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </p>
+
+                    <p>
+                        <label for="city">City<span>*</span></label>
+                        {{ form.city(class_="form-control", placeholder="City") }}
+                        {% if form.city.errors %}
+                        <ul>
+                            {% for error in form.city.errors %}
+                            <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </p>
                     <p>
                         <label for="pincode">Pincode<span>*</span></label>
                         {{ form.pincode(class_="form-control", placeholder="Pincode") }}
@@ -116,6 +139,7 @@
                         {% endif %}
                     </p>
 
+
                     <p>
                         <input type="submit" value="Sign Up" />
                     </p>
@@ -136,4 +160,32 @@
         </div> 
     </div>
 </div>
+
+<script>
+    const statesCity = {{ STATES_CITY|tojson }};
+    
+    const stateField = document.getElementById('state');
+    const cityField = document.getElementById('city');
+
+    stateField.addEventListener('change', function () {
+        const selectedState = stateField.value;
+        const cities = statesCity[selectedState] || [];
+        cityField.innerHTML = ""; // Clear previous options
+        cities.forEach(city => {
+            const option = document.createElement('option');
+            option.value = city;
+            option.textContent = city;
+            cityField.appendChild(option);
+        });
+    });
+
+    // Trigger city update on page load if a state is pre-selected
+    document.addEventListener('DOMContentLoaded', () => {
+        const event = new Event('change');
+        stateField.dispatchEvent(event);
+    });
+
+</script>
+
+
 {% endblock content %}

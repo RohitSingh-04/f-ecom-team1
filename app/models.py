@@ -9,19 +9,23 @@ class User(UserMixin,db.Model):
     firstname = db.Column(db.String(80), nullable=False)
     lastname = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    address = db.Column(db.String(120), nullable=False)
+    address_line_1 = db.Column(db.String(120), nullable=False)
+    state = db.Column(db.String(120), nullable=False)
+    city = db.Column(db.String(120), nullable=False)
     password = db.Column(db.String(200), nullable=False)
     role = db.Column(db.String(10), nullable=False)
     pincode = db.Column(db.String(10), nullable=False)
     approved = db.Column(db.Boolean, default=False)
-    def __init__(self, password, email, address, role, firstname, lastname, pincode):
+    def __init__(self, password, email, address_line_1, role, firstname, lastname, pincode, state, city):
         self.password = password
         self.email = email
-        self.address = address
+        self.address_line_1 = address_line_1
         self.role = role
         self.firstname = firstname
         self.lastname = lastname
         self.pincode = pincode
+        self.state = state
+        self.city = city
     
     def isAdmin(self):
         return self.role == 'admin' and self.id == 1 and self.email == "admin@springboard.com"
