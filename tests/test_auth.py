@@ -1,9 +1,9 @@
 import unittest
-from flask import Flask, render_template_string, flash, request
 from flask_testing import TestCase
 from main import create_app, db, models
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
+from flask import Flask, session, get_flashed_messages
 
 class TestSignupPage(TestCase):
     def create_app(self):
@@ -90,6 +90,27 @@ class TestSignupPage(TestCase):
         except IntegrityError:
             db.session.rollback()
             self.assertTrue(True, "saved to save data from database")
+
+        #retry to save the data
+        try:
+            existing_user = models.User(
+                firstname="Existing",
+                lastname="User",
+                email="test@example.com",
+                password=generate_password_hash("password123", method='pbkdf2:sha256'),
+                address_line_1="123 Test St",
+                state="Uttarakhand",
+                city="Dehradun",
+                role="user",
+                pincode="123456"
+            )
+            db.session.add(existing_user)
+            db.session.commit()
+            self.assertTrue(False, "save data into database")
+
+        except IntegrityError:
+            db.session.rollback()
+            self.assertTrue(True, "saved to save data from database")
         
         self.assertTrue(existing_user, "User created successfully")
 
@@ -162,8 +183,7 @@ class TestLogin(TestCase):
         # Check that the user is redirected to home page
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Welcome', response.data)
-
-
+            
 class TestForgetPassword(TestCase):
     def create_app(self):
         app = create_app(config_class="TestConfig")

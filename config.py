@@ -9,7 +9,9 @@ class Config:
 class TestConfig(Config):
     """Configuration for testing environment."""
     TESTING = True  # Enable testing mode
+    SECRET_KEY = 'test_secret_key'  # Set a secret key for testing
     SQLALCHEMY_DATABASE_URI = 'sqlite:///:memory:'  # Use an in-memory database for tests
+    SESSION_COOKIE_NAME = 'test_session'
 
 class DevelopmentConfig(Config):
     """Configuration for development environment."""

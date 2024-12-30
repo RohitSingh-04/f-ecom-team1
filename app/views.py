@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, get_flashed_messages, redirect, url_for
+from flask import Blueprint, render_template, get_flashed_messages, redirect, url_for, Response
 from flask_login import login_required, current_user
 from .models import db
 from .forms import UpdateUserForm
+from .decorators import is_delivery_person
 
 bp = Blueprint('views', __name__)
 
@@ -111,3 +112,9 @@ def update():
 @bp.route('/auth_error')
 def auth_error():
     return render_template('notAuthorized.html')
+
+
+@bp.route('/deliver')
+@is_delivery_person
+def deliver():
+    return Response("Delivered", status=200)

@@ -15,51 +15,52 @@ auth = Blueprint('auth', __name__)
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
-    if form.validate_on_submit():
-        email = request.form.get('email')
-        password = request.form.get('password')
+    if request.method =="POST":
+        if form.validate_on_submit():
+            email = request.form.get('email')
+            password = request.form.get('password')
+            user = User.query.filter_by(email=email).first()
 
-        user = User.query.filter_by(email=email).first()
-
-        if user and check_password_hash(user.password, password):
-            login_user(user)
-            return redirect(url_for('views.home'))
-        else:
-            flash('Invalid username or password.', 'danger')
+            if user and check_password_hash(user.password, password):
+                login_user(user)
+                return redirect(url_for('views.home'))
+            else:
+                flash('Invalid username or password.', 'danger')
 
     return render_template('login.html', form=form)
 
 @auth.route('/signup', methods=['GET', 'POST'])
 def signup():
     form = RegistrationForm()
-    if form.state.data in STATES_CITY:
-        form.city.choices = [(city, city) for city in STATES_CITY[form.state.data]]
-    else:
-        form.city.choices = []
-    if form.validate_on_submit():
-        hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
-        new_user = User(
-            firstname=form.firstname.data,
-            lastname=form.lastname.data,
-            email=form.email.data,
-            address_line_1=form.address.data,
-            role=form.role.data,
-            pincode=form.pincode.data,
-            password=hashed_password,
-            state = form.state.data,
-            city = form.city.data
-        )
+    if request.method == "POST":
+        if form.state.data in STATES_CITY:
+            form.city.choices = [(city, city) for city in STATES_CITY[form.state.data]]
+        else:
+            form.city.choices = []
+        if form.validate_on_submit():
+            hashed_password = generate_password_hash(form.password.data, method='pbkdf2:sha256')
+            new_user = User(
+                firstname=form.firstname.data,
+                lastname=form.lastname.data,
+                email=form.email.data,
+                address_line_1=form.address.data,
+                role=form.role.data,
+                pincode=form.pincode.data,
+                password=hashed_password,
+                state = form.state.data,
+                city = form.city.data
+            )
 
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Account created successfully.', 'success')
-            return redirect(url_for('auth.login'))
-        except IntegrityError:
-            flash('Signup failed! Email already exists.', 'danger')
-        except Exception as e:
-            print(e)
-            flash('Signup failed! An error occurred!', 'danger')
+            try:
+                db.session.add(new_user)
+                db.session.commit()
+                flash('Account created successfully.', 'success')
+                return redirect(url_for('auth.login'))
+            except IntegrityError:
+                flash('Signup failed! Email already exists.', 'danger')
+            except Exception as e:
+                print(e)
+                flash('Signup failed! An error occurred!', 'danger')
 
     return render_template('signup.html', form=form, STATES_CITY = STATES_CITY)
 
