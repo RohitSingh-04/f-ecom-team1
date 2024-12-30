@@ -40,7 +40,7 @@
         <th scope="row">{{ loop.index }}</th>
         <td>{{ delivery_person.firstname }}</td>
         <td>{{ delivery_person.lastname }}</td>
-        <td>{{ delivery_person.address }}</td>
+        <td>{{ delivery_person.address_line_1 }}{{ delivery_person.city }}{{ delivery_person.state }}</td>
         <td>
           <button onclick="approve_user({{ delivery_person.id }})" class="btn btn-outline-success"><svg class="bi flex-shrink-0 me-2" fill="#00ff00" role="img" aria-label="approve:"  height="30" width="30"><use xlink:href="#tick-fill"/></svg></button>
           <button onclick="delete_user({{ delivery_person.id }})" class="btn btn-outline-danger"><svg class="bi flex-shrink-0 me-2" role="img" fill="#ff0000" aria-label="reject:" height="30" width="30">
