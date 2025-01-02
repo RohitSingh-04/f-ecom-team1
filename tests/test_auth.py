@@ -4,6 +4,7 @@ from main import create_app, db, models
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 from flask import Flask, session, get_flashed_messages
+from app.models import User
 
 class TestSignupPage(TestCase):
     def create_app(self):
@@ -232,6 +233,96 @@ class TestForgetPassword(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Invalid email address.", response.data)  # Assuming this is the error message for invalid email
 
+
+
+class UserRoleTestCase(TestCase):
+    def create_app(self):
+        app = create_app(config_class="TestConfig")
+        return app
+
+    def setUp(self):
+        # Create tables and a sample dataset
+        db.create_all()
+        self.add_sample_users()
+
+    def tearDown(self):
+        # Drop all tables after each test
+        db.session.remove()
+        db.drop_all()
+
+    def add_sample_users(self):
+        """Add sample users to the test database"""
+        admin_user = User(
+            password='admin123',
+            email='admin@springboard.com',
+            address_line_1='Admin Address',
+            role='admin',
+            firstname='Admin',
+            lastname='User',
+            pincode='123456',
+            state='State1',
+            city='City1'
+        )
+        normal_user = User(
+            password='user123',
+            email='user@example.com',
+            address_line_1='User Address',
+            role='user',
+            firstname='Normal',
+            lastname='User',
+            pincode='654321',
+            state='State2',
+            city='City2'
+        )
+        delivery_user = User(
+            password='delivery123',
+            email='delivery@example.com',
+            address_line_1='Delivery Address',
+            role='delivery',
+            firstname='Delivery',
+            lastname='Person',
+            pincode='789101',
+            state='State3',
+            city='City3'
+        )
+        delivery_user.approved = True
+        db.session.add(admin_user)
+        db.session.add(normal_user)
+        db.session.add(delivery_user)
+        db.session.commit()
+
+    def test_is_admin(self):
+        """Test the isAdmin method"""
+        admin_user = User.query.filter_by(email='admin@springboard.com').first()
+        assert admin_user.isAdmin() is True
+
+    def test_is_delivery_person(self):
+        """Test the isDeliveryPerson method"""
+        delivery_user = User.query.filter_by(email='delivery@example.com').first()
+        assert delivery_user.isDeliveryPerson() is True
+
+    def test_is_not_delivery_person(self):
+        """Ensure unapproved delivery person is not identified as delivery person"""
+        unapproved_user = User(
+            password='unapproved123',
+            email='unapproved@example.com',
+            address_line_1='Unapproved Address',
+            role='delivery',
+            firstname='Unapproved',
+            lastname='Person',
+            pincode='111111',
+            state='State4',
+            city='City4'
+        )
+        db.session.add(unapproved_user)
+        db.session.commit()
+        assert unapproved_user.isDeliveryPerson() is False
+
+    def test_is_normal_user(self):
+        """Test that a normal user is not identified as admin or delivery person"""
+        normal_user = User.query.filter_by(email='user@example.com').first()
+        assert normal_user.isAdmin() is False
+        assert normal_user.isDeliveryPerson() is False
 
 if __name__ == '__main__':
     unittest.main()
