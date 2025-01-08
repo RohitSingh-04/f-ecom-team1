@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template, get_flashed_messages, redirect, url_for, Response
+from flask import Blueprint, render_template, get_flashed_messages, redirect, url_for, Response, flash, request
 from flask_login import login_required, current_user
 from .models import db
 from .forms import UpdateUserForm
 from .decorators import is_delivery_person
-
+from .constants import STATES_CITY
 bp = Blueprint('views', __name__)
 
 
@@ -101,12 +101,34 @@ def product_details(product_id):
 @login_required
 def update():
     get_flashed_messages()
-    form = UpdateUserForm(obj=current_user)  # Prepopulate form with current_user data
-    if form.validate_on_submit():
-        form.populate_obj(current_user)  # Update user object with form data
-        db.session.commit()
-        return redirect(url_for('views.home'))
-    return render_template('update_user.html', form=form)
+    form = UpdateUserForm(obj=current_user)  # Populate the form with the current user's data
+    if form.state.data in STATES_CITY:
+        form.city.choices = [(city, city) for city in STATES_CITY[form.state.data]]
+    else:
+        form.city.choices = []
+
+    if request.method == 'POST' and form.validate_on_submit():
+        try:
+            current_user.firstname = form.firstname.data
+            current_user.lastname = form.lastname.data
+            current_user.address_line_1 = form.address_line_1.data
+            current_user.state = form.state.data
+            current_user.city = form.city.data
+            current_user.role = form.role.data
+            current_user.pincode = form.pincode.data
+
+            db.session.commit()
+            flash('Details updated successfully!', 'success')
+            return redirect(url_for('auth.update_user'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'An error occurred: {str(e)}', 'danger')
+    
+    return render_template(
+        'update_user.html',
+        form=form,
+        STATES_CITY=STATES_CITY
+    )
 
 
 @bp.route('/auth_error')

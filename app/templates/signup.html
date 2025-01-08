@@ -82,10 +82,10 @@
                     
                     <p>
                         <label for="address">Address Line 1<span>*</span></label>
-                        {{ form.address(class_="form-control", placeholder="Address Line 1") }}
-                        {% if form.address.errors %}
+                        {{ form.address_line_1(class_="form-control", placeholder="Address Line 1") }}
+                        {% if form.address_line_1.errors %}
                         <ul>
-                            {% for error in form.address.errors %}
+                            {% for error in form.address_line_1.errors %}
                             <li class="error">{{ error }}</li>
                             {% endfor %}
                         </ul>

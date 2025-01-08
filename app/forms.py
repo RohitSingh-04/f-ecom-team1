@@ -9,7 +9,7 @@ class RegistrationForm(FlaskForm):
     firstname = StringField('First Name', validators=[DataRequired(), Length(min=2, max=80)])
     lastname = StringField('Last Name', validators=[DataRequired(), Length(min=2, max=80)])
     email = StringField('Email', validators=[DataRequired(), Email()])
-    address = StringField('Address', validators=[DataRequired(), Length(min=5, max=120)])
+    address_line_1 = StringField('Address', validators=[DataRequired(), Length(min=5, max=120)])
     state = SelectField('State', choices=[(state, state) for state in STATES_CITY.keys()], validators=[DataRequired()])
     city = SelectField('City', choices=[(None, 'Select a city')], validators=[DataRequired()])
     role = SelectField('Role', choices=[('user', 'User'), ('delivery', 'Delivery')], validators=[DataRequired()])
@@ -28,9 +28,13 @@ class LoginForm(FlaskForm):
 class UpdateUserForm(FlaskForm):
     firstname = StringField('First Name', validators=[DataRequired(), Length(min=2, max=80)])
     lastname = StringField('Last Name', validators=[DataRequired(), Length(min=2, max=80)])
-    address = StringField('Address', validators=[DataRequired(), Length(min=5, max=120)])
+    address_line_1 = StringField('Address', validators=[DataRequired(), Length(min=5, max=120)])
     pincode = StringField('Pincode', validators=[DataRequired(), Length(min=6, max=10)])
-    submit = SubmitField('Update')
+    state = SelectField('State', choices=[(state, state) for state in STATES_CITY.keys()], validators=[DataRequired()])
+    city = SelectField('City', choices=[(None, 'Select a city')], validators=[DataRequired()])
+    role = SelectField('Role', choices=[('user', 'User'), ('delivery', 'Delivery')], validators=[DataRequired()])
+    submit = SubmitField('Update')  
+
 
 # Password Reset Form
 class ResetPasswordForm(FlaskForm):

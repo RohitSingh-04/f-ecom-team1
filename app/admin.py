@@ -1,14 +1,24 @@
 from flask import Blueprint, request, jsonify, get_flashed_messages, redirect, url_for, render_template
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask_login import login_required, current_user
-from .models import db, User, Product
+from .models import db, User, Product, Order
 from .decorators import is_admin
 from .forms import AddItemForm
 from .methods import send_approval_email
+from werkzeug.security import generate_password_hash
+from .visualization import Visualize
+import base64
+from sqlalchemy import func
 
+import random
+import string
+from sqlalchemy.exc import IntegrityError
 
 # Define the admin blueprint
 admin = Blueprint('admin', __name__)
+
+#Define the Visualization Object
+visualize = Visualize()
 
 # Define the route to add shop items
 @admin.route('/add-shop-items', methods=['POST'])
@@ -113,6 +123,116 @@ def approve_user(user_id):
     finally:
         db.session.close()
 
+#view for chart dashboards
+@admin.route("/stats")
+@login_required
+@is_admin
+def stats():
+    return render_template('stats.html')
+
+#chart 1 : new and returning customers records
+@admin.route('/chart1')
+@login_required
+@is_admin
+def show_chart1():
+
+    first_order_dates = db.session.query(
+        Order.customer_id,
+        func.min(func.date(Order.order_date)).label('first_order_date')
+    ).group_by(Order.customer_id).subquery()
+
+    # Query to calculate new and returning customers per order_date
+    stats = db.session.query(
+        func.date(Order.order_date).label('order_date'),
+        func.count(func.distinct(Order.customer_id)).filter(
+            Order.customer_id.in_(
+                db.session.query(first_order_dates.c.customer_id).filter(
+                    func.date(Order.order_date) == first_order_dates.c.first_order_date
+                )
+            )
+        ).label('new_customers'),
+        func.count(func.distinct(Order.customer_id)).filter(
+            Order.customer_id.notin_(
+                db.session.query(first_order_dates.c.customer_id).filter(
+                    func.date(Order.order_date) == first_order_dates.c.first_order_date
+                )
+            )
+        ).label('returning_customers')
+    ).group_by(func.date(Order.order_date)).all()
+
+    data = [[] for _ in range(3)]
+
+    for row in stats:
+        data[0].append(str(row.order_date))
+        data[1].append(row.new_customers)
+        data[2].append(row.returning_customers)
+
+    img = visualize.generate_new_old_customers_graph(data[0], data[1], data[2])
+
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "New and Returning Customers"})
+
+@admin.route('/chart2')
+@login_required
+@is_admin
+def show_chart2():
+    sales_data = db.session.query(
+        func.date(Order.order_date).label('date'),
+        func.sum(Order.price).label('total_sales')
+    ).group_by(
+        func.date(Order.order_date)
+    ).order_by(
+        func.date(Order.order_date)
+    ).all()
+
+    data = [[],[]]
+
+    for row in sales_data:
+        data[0].append(str(row.date))
+        data[1].append(row.total_sales)
+    
+    img = visualize.generate_revenue_overtime_graph(data[0], data[1])
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "Revenue Over Time"})
+
+@admin.route('/chart3')
+@login_required
+@is_admin
+def show_chart3():
+    results = (
+    db.session.query(Order.status, func.count(Order.status))
+    .group_by(Order.status)
+    .order_by(Order.status)
+    .all()
+    )
+
+    status = [result[0] for result in results]
+    count = [result[1] for result in results]
+
+    img = visualize.generate_order_status_graph(status, count)
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "Order Status"})
+
+@admin.route('/chart4')
+@login_required
+@is_admin
+def show_chart4():
+    results = (
+    db.session.query(Product.category, func.sum(Product.stock_quantity))
+    .group_by(Product.category).all())
+
+    products = []
+    stocks = []
+
+    for row in results:
+        products.append(row[0])
+        stocks.append(row[1])
+    
+    img = visualize.generate_inventory_stocks_graph(products, stocks)
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "Inventory Stock Levels"})
+
 # dummy to be removed later
 @admin.route('/make_me_admin')
 @login_required
@@ -121,3 +241,182 @@ def make_me_admin():
         current_user.role = 'admin'
         db.session.commit()
     return redirect(url_for('views.home'))
+
+
+# Generate random data for users
+def generate_random_user_data():
+    firstname = ''.join(random.choices(string.ascii_letters, k=8)).capitalize()
+    lastname = ''.join(random.choices(string.ascii_letters, k=10)).capitalize()
+    email = f"{firstname.lower()}.{lastname.lower()}@example.com"
+    address_line_1 = f"{random.randint(1, 999)} {random.choice(['Main St', 'Second St', 'Broadway'])}"
+    state = random.choice(['State1', 'State2', 'State3', 'State4'])
+    city = random.choice(['CityA', 'CityB', 'CityC', 'CityD'])
+    role = "user"
+    pincode = f"{random.randint(10000, 99999)}"
+    password = generate_password_hash('password123')  # You can change the password
+    return firstname, lastname, email, address_line_1, state, city, role, pincode, password
+
+# Helper function to generate random product data
+def generate_random_product_data():
+    name = f"Product {''.join(random.choices(string.ascii_uppercase, k=3))}"
+    price = round(random.uniform(10, 1000), 2)
+    stock_quantity = random.randint(1, 100)
+    brand = random.choice(["BrandA", "BrandB", "BrandC"])
+    size = random.choice(["Small", "Medium", "Large"])
+    target_user = random.choice(["Men", "Women", "Kids"])
+    type_ = random.choice(["Type1", "Type2", "Type3"])
+    image = "https://via.placeholder.com/150"
+    description = "Lorem ipsum dolor sit amet."
+    details = "Detailed description here."
+    colour = random.choice(["Red", "Blue", "Green", "Black"])
+    category = random.choice(["Category1", "Category2", "Category3"])
+    return name, price, stock_quantity, brand, size, target_user, type_, image, description, details, colour, category
+
+
+
+#add dummy users
+@admin.route('/add-dummy-users')
+@login_required
+@is_admin
+def addusers():
+    dummy_users = []
+    failed_users = []
+    for _ in range(100):
+        firstname, lastname, email, address_line_1, state, city, role, pincode, password = generate_random_user_data()
+        user = User(
+            firstname=firstname,
+            lastname=lastname,
+            email=email,
+            address_line_1=address_line_1,
+            state=state,
+            city=city,
+            role=role,
+            pincode=pincode,
+            password=password
+        )
+        try:
+            db.session.add(user)
+            db.session.commit()  # Commit inside try to catch IntegrityError
+            dummy_users.append(email)
+        except IntegrityError:
+            db.session.rollback()  # Roll back the session to handle the exception
+            failed_users.append(email)
+
+    return jsonify({
+        "message": "100 dummy users attempted to be created.",
+        "created_users": dummy_users,
+        "failed_users": failed_users
+    })
+
+
+created_product_ids = []
+created_order_ids = []
+# Route to create 50 dummy products
+@admin.route('/create-dummy-products')
+def create_dummy_products():
+
+    global created_product_ids
+
+    dummy_products = []
+    
+    for _ in range(50):
+        name, price, stock_quantity, brand, size, target_user, type_, image, description, details, colour, category = generate_random_product_data()
+        product = Product(name=name, price=price, stock_quantity=stock_quantity, brand=brand, size=size,
+                          target_user=target_user, type=type_, image=image, description=description,
+                          details=details, colour=colour, category=category)
+        try:
+            db.session.add(product)
+            db.session.commit()
+            created_product_ids.append(product.id)  # Track the created product ID
+            dummy_products.append(name)
+        except IntegrityError:
+            db.session.rollback()
+    
+    return jsonify({"message": f"{len(dummy_products)} dummy products attempted to be created.", "created_products": dummy_products})
+
+
+@admin.route('/create-dummy-orders')
+@login_required
+@is_admin
+def create_dummy_orders():
+    # Get all users and products to pick from randomly
+    users = User.query.all()
+    products = Product.query.all()
+
+    if not users or not products:
+        return jsonify({"message": "No users or products available to create orders."})
+
+    # Track orders created
+    global create_dummy_orders
+    
+    # Generate orders for every date in the last 3 months
+    today = datetime.now(timezone.utc)
+    start_date = today - timedelta(days=90)  # 3 months ago
+
+    for delta in range(91):  # Generate orders for each day in the last 3 months
+        order_date = start_date + timedelta(days=delta)
+        
+        for _ in range(random.randint(30, 40)):  # 30 to 40 orders per day
+            # Randomly select a user and a product
+            customer = random.choice(users)
+            product = random.choice(products)
+            
+            # Randomly generate price and status
+            price = round(random.uniform(10, 500), 2)  # Random price between 10 and 500
+            status = random.choice(['Pending', 'Shipped', 'Delivered', 'Cancelled'])  # Random status
+            
+            # Create the order
+            order = Order(customer_id=customer.id, product_id=product.id, price=price, status=status, order_date=order_date)
+            
+            try:
+                db.session.add(order)
+                db.session.commit()
+                created_order_ids.append(order.id)  # Track created order IDs
+            except IntegrityError:
+                db.session.rollback()
+
+    return jsonify({"message": "Dummy orders created.", "created_orders": created_order_ids})
+
+
+@admin.route('/delete-dummy-users')
+@login_required
+@is_admin
+def deletedummyusers():
+    deleted_users = []
+    dummy_users = User.query.filter(User.email.like('%@example.com')).all()  # Assuming emails for dummy users end with `@example.com`
+    for user in dummy_users:
+        deleted_users.append(user.email)
+        db.session.delete(user)
+    db.session.commit()
+    return jsonify({"message": f"{len(deleted_users)} dummy users deleted.", "deleted_users": deleted_users})
+
+@admin.route('/delete-dummy-products')
+@login_required
+@is_admin
+def deletedummyproducts():
+    deleted_products = []
+    global created_product_ids
+    # Only delete products with IDs stored in created_product_ids
+    for product_id in created_product_ids:
+        product = Product.query.get(product_id)
+        if product:
+            db.session.delete(product)
+            deleted_products.append(product.name)
+    
+    db.session.commit()
+    return jsonify({"message": f"{len(deleted_products)} dummy products deleted.", "deleted_products": deleted_products})
+
+@admin.route('/delete-dummy-orders')
+@login_required
+@is_admin
+def deletedummyorders():
+    deleted_orders = []
+    global created_order_ids
+
+    for order_id in created_order_ids:
+        order = Order.query.get(order_id)
+        if order:
+            db.session.delete(order)
+            deleted_orders.append(order.id)
+    db.session.commit()
+    return jsonify({"message": f"{len(deleted_orders)} dummy orders deleted.", "deleted_orders": deleted_orders})

@@ -43,7 +43,7 @@ def signup():
                 firstname=form.firstname.data,
                 lastname=form.lastname.data,
                 email=form.email.data,
-                address_line_1=form.address.data,
+                address_line_1=form.address_line_1.data,
                 role=form.role.data,
                 pincode=form.pincode.data,
                 password=hashed_password,

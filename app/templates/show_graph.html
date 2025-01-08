@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}
+    {{ graph_name }}
+{% endblock title %}
+{% block heads %}
+{% endblock heads %}
+{% block content %}
+<div class="container mt-5">
+    <h1 class="text-center mb-4">{{ graph_name }}</h1>
+    <div class="d-flex justify-content-center">
+        <!-- Responsive Chart Image -->
+        <img src="data:image/png;base64,{{ img }}" class="img-fluid rounded shadow" alt="Generated Chart">
+    </div>
+    <div class="text-center mt-3">
+        <a href="/" class="btn btn-primary">Back to Home</a>
+    </div>
+</div>
+{% endblock content %}

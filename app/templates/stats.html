@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}
+    Statistics
+{% endblock title %}
+{% block heads %}
+{% endblock heads %}
+{% block content %}
+    <div class="container-fluid">
+
+        <!-- Page Content -->
+        <div class="row mt-4">
+            <div class="col-md-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">New & Returning Customers</h5>
+                        <p class="card-text">This section provides a quick overview of your analytics data about the trends of new and returning customers.</p>
+                        <a href="chart1" class="btn btn-success">View Chart 1</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Revenue Overtime</h5>
+                        <p class="card-text">Visualize the Revenue trends across different time periods using a Line Chart.</p>
+                        <a href="chart2" class="btn btn-success">View Chart 2</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Order Status</h5>
+                        <p class="card-text">Distrubution of Order Status.</p>
+                        <a href="chart3" class="btn btn-success">View Chart 3</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-4">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Inventory Stocks levels</h5>
+                        <p class="card-text">Inventory Stock Insights using a bar chart.</p>
+                        <a href="chart4" class="btn btn-success">View Chart 4</a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="card shadow">
+                    <div class="card-body">
+                        <h5 class="card-title">Finantial Overview</h5>
+                        <p class="card-text">Compare your performance metrics across Revenue, Expenses and Profits.</p>
+                        <a href="chart5" class="btn btn-success">View Chart 5</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock content %}
