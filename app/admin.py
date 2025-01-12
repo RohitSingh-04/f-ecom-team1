@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, get_flashed_messages, redirect, url_for, render_template
 from datetime import datetime, timezone, timedelta
 from flask_login import login_required, current_user
-from .models import db, User, Product, Order
+from .models import db, User, Product, Order, ProductAddLogs
 from .decorators import is_admin
 from .forms import AddItemForm
 from .methods import send_approval_email
@@ -171,7 +171,7 @@ def show_chart1():
 
     img = base64.b64encode(img.getvalue()).decode('utf8')
 
-    return render_template('show_graph.html', img = img, context = {"graph_name" : "New and Returning Customers"})
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "New and Returning Customers", "data" : [[data[0][i], data[1][i], data[2][i]] for i in range(len(data[0]))],  "Attributes": ["Order Date", "New Customers", "Returning Customers"]})
 
 @admin.route('/chart2')
 @login_required
@@ -194,7 +194,7 @@ def show_chart2():
     
     img = visualize.generate_revenue_overtime_graph(data[0], data[1])
     img = base64.b64encode(img.getvalue()).decode('utf8')
-    return render_template('show_graph.html', img = img, context = {"graph_name" : "Revenue Over Time"})
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "Revenue Over Time", "data" : [[data[0][i], round(data[1][i], 2)] for i in range(len(data[0]))], "Attributes": ["Date", "Total Sales"]})
 
 @admin.route('/chart3')
 @login_required
@@ -212,7 +212,7 @@ def show_chart3():
 
     img = visualize.generate_order_status_graph(status, count)
     img = base64.b64encode(img.getvalue()).decode('utf8')
-    return render_template('show_graph.html', img = img, context = {"graph_name" : "Order Status"})
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "Order Status", "data" : [[status[i], count[i]] for i in range(len(status))], "Attributes": ["Status", "Count"]})
 
 @admin.route('/chart4')
 @login_required
@@ -231,7 +231,49 @@ def show_chart4():
     
     img = visualize.generate_inventory_stocks_graph(products, stocks)
     img = base64.b64encode(img.getvalue()).decode('utf8')
-    return render_template('show_graph.html', img = img, context = {"graph_name" : "Inventory Stock Levels"})
+    return render_template('inventory_stocks_insights.html', img = img, context = {"graph_name" : "Inventory Stock Levels", "data" : [[products[i], stocks[i]] for i in range(len(products))], "Attributes": ["Category", "Stock"]})
+
+@admin.route('/chart5')
+@login_required
+@is_admin
+def show_chart5():
+    results_expenses = db.session.query(
+        func.date(ProductAddLogs.date_added).label('date'),  # Group by date only (ignore time part)
+        func.sum(ProductAddLogs.cost).label('total_cost')
+    ).group_by(func.date(ProductAddLogs.date_added)).all()
+    sales_data = db.session.query(
+        func.date(Order.order_date).label('date'),
+        func.sum(Order.price).label('total_sales')
+    ).group_by(
+        func.date(Order.order_date)
+    ).order_by(
+        func.date(Order.order_date)
+    ).all()
+
+    dates = [str(result.date) for result in results_expenses]
+    expenses = [round(result.total_cost, 2) for result in results_expenses]
+    revenue = [round(result.total_sales, 2) for result in sales_data]
+
+    img = visualize.generate_finantial_overview_graph(dates, expenses, revenue)
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+
+    return render_template("show_graph.html", img = img, context = {"graph_name" : "Finantial Overview", "data" : [[dates[i], expenses[i], revenue[i], round(revenue[i]-expenses[i],2)] for i in range(len(dates))], "Attributes": ["Date", "Expenses", "Revenue", "Profits"]} )
+
+
+@admin.route('/get-stock-chart/<category>', methods = ["GET"])
+@login_required
+@is_admin
+def get_chart(category):
+    if request.method == "GET":
+        products = Product.query.filter(Product.category == category).all()
+        products_name = [product.name for product in products]
+        products_stocks = [product.stock_quantity for product in products]
+
+        img = visualize.generate_inventory_stocks_graph(products_name, products_stocks, category)
+        img = base64.b64encode(img.getvalue()).decode('utf8')
+
+        return jsonify({"image": img, "data": [products_name, products_stocks]})
+
 
 # dummy to be removed later
 @admin.route('/make_me_admin')
@@ -271,8 +313,6 @@ def generate_random_product_data():
     colour = random.choice(["Red", "Blue", "Green", "Black"])
     category = random.choice(["Category1", "Category2", "Category3"])
     return name, price, stock_quantity, brand, size, target_user, type_, image, description, details, colour, category
-
-
 
 #add dummy users
 @admin.route('/add-dummy-users')
@@ -378,45 +418,40 @@ def create_dummy_orders():
     return jsonify({"message": "Dummy orders created.", "created_orders": created_order_ids})
 
 
-@admin.route('/delete-dummy-users')
+# Route to create dummy entries for ProductAddLogs for products within the past 90 days
+@admin.route('/create-dummy-product-add-logs')
 @login_required
 @is_admin
-def deletedummyusers():
-    deleted_users = []
-    dummy_users = User.query.filter(User.email.like('%@example.com')).all()  # Assuming emails for dummy users end with `@example.com`
-    for user in dummy_users:
-        deleted_users.append(user.email)
-        db.session.delete(user)
-    db.session.commit()
-    return jsonify({"message": f"{len(deleted_users)} dummy users deleted.", "deleted_users": deleted_users})
+def create_dummy_product_add_logs():
+    # Track dummy log entries created
+    created_logs = []
 
-@admin.route('/delete-dummy-products')
-@login_required
-@is_admin
-def deletedummyproducts():
-    deleted_products = []
-    global created_product_ids
-    # Only delete products with IDs stored in created_product_ids
-    for product_id in created_product_ids:
-        product = Product.query.get(product_id)
-        if product:
-            db.session.delete(product)
-            deleted_products.append(product.name)
-    
-    db.session.commit()
-    return jsonify({"message": f"{len(deleted_products)} dummy products deleted.", "deleted_products": deleted_products})
+    # Get all products created in the past 90 days
+    today = datetime.now(timezone.utc)
+    start_date = today - timedelta(days=90)
+    products = Product.query.all()
 
-@admin.route('/delete-dummy-orders')
-@login_required
-@is_admin
-def deletedummyorders():
-    deleted_orders = []
-    global created_order_ids
+    for product in products:
+        # Create random log entries for each product within the last 90 days
+        for _ in range(random.randint(1, 5)):  # Randomly create 1 to 5 log entries per product
+            quantity = random.randint(1, 50)  # Random quantity added
+            cost = round(random.uniform(5, 1000), 2)  # Random cost between 5 and 1000
 
-    for order_id in created_order_ids:
-        order = Order.query.get(order_id)
-        if order:
-            db.session.delete(order)
-            deleted_orders.append(order.id)
-    db.session.commit()
-    return jsonify({"message": f"{len(deleted_orders)} dummy orders deleted.", "deleted_orders": deleted_orders})
+            log = ProductAddLogs(
+                product_id=product.id,
+                quantity=quantity,
+                cost=cost,
+                date_added=random.choice([start_date + timedelta(days=i) for i in range(90)])  # Random date within the last 90 days
+            )
+
+            try:
+                db.session.add(log)
+                db.session.commit()
+                created_logs.append(f"Product ID {product.id}, Quantity {quantity}, Cost {cost}")
+            except IntegrityError:
+                db.session.rollback()  # In case of a database error
+
+    return jsonify({
+        "message": f"Dummy product add logs created for {len(created_logs)} entries.",
+        "created_logs": created_logs
+    })

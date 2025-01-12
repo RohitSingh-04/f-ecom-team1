@@ -1,7 +1,12 @@
+import matplotlib.pyplot
 from .models import User, Product, Order
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use("Agg")
+
+plt = matplotlib.pyplot
+
 from io import BytesIO
 
 class Visualize:
@@ -17,11 +22,13 @@ class Visualize:
         plt.plot(dates_for_chart1, values_for_returning_customers, label="Returning Customers", color="green")
         plt.xlabel('Date')
         plt.xticks(dates_for_chart1[::10], rotation=45)
+        plt.gcf().autofmt_xdate()
         plt.ylabel('People')
         plt.title('New Customers and Returning Customers')
         plt.grid(True)
         plt.legend()
         plt.xticks(rotation=45)
+        plt.tight_layout()
 
         img = BytesIO()
         plt.savefig(img, format='png')
@@ -32,12 +39,14 @@ class Visualize:
 
     @staticmethod
     def generate_revenue_overtime_graph(dates:list, revenue:list) -> BytesIO:
-        plt.figure(figsize=(10, 5))
+        plt.figure(figsize=(12, 5))  # Adjust figure size for better readability
         plt.plot(dates, revenue, label="Revenue", color="green")
-        plt.xticks(dates[::10], rotation=45)
+        plt.xticks(dates[::10])  # Keep every 10th date for better spacing
+        plt.gcf().autofmt_xdate()  # Automatically format and rotate dates
         plt.xlabel('Date')
         plt.ylabel('Revenue')
         plt.title('Revenue Over Time')
+        plt.tight_layout()  # Adjust layout to avoid clipping
 
         img = BytesIO()
         plt.savefig(img, format='png')
@@ -45,7 +54,7 @@ class Visualize:
         plt.close()
 
         return img
-    
+        
     @staticmethod
     def generate_order_status_graph(statuses: list, values: list) -> BytesIO:
         plt.pie(values, labels=statuses, autopct='%1.1f%%', startangle=140, wedgeprops={'width': 0.65})
@@ -58,10 +67,12 @@ class Visualize:
         return img
 
     @staticmethod
-    def generate_inventory_stocks_graph(products: list, stocks: list) -> BytesIO:
-        plt.bar(products, stocks, color="#11FF33")
-        plt.xlabel('Products')
-        plt.ylabel('Stock')
+    def generate_inventory_stocks_graph(products: list, stocks: list, xlabel = "Category", ylabel = "Stock") -> BytesIO:
+        n =  len(products)
+        plt.figure(figsize=(10, 5+(n//10)))
+        plt.barh(products, stocks, color="#11FF33")
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
         plt.title('Inventory Stock Levels')
         img = BytesIO()
         plt.savefig(img, format='png')
@@ -69,5 +80,35 @@ class Visualize:
         plt.close()
         return img
     
-    def generate_finantial_overview_graph(data):
-        ...
+    @staticmethod
+    def generate_finantial_overview_graph(dates: list, expenses: list, revenue:list):
+        n = min(len(expenses), len(revenue))
+        if len(expenses)==n:
+            revenue = revenue[:n]
+        else:
+            expenses = expenses[:n]
+
+        profits = [revenue[i]-expenses[i] for i in range(n)]
+        print(len(expenses), len(revenue), len(profits))
+        plt.figure(figsize=(10, 5))
+        plt.plot(dates, expenses, label="Expenses", color="grey")
+        plt.plot(dates, revenue, label="Revenue", color="green")
+        plt.plot(dates, profits, label="Profits", color="pink")
+        plt.xlabel('Date')
+        plt.gcf().autofmt_xdate()
+        plt.ylabel('Amount')
+        plt.title('Financial Performance')
+        plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
+        plt.xticks(dates[::10], rotation=45)
+        
+        plt.tight_layout()
+
+        img = BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        plt.close()
+        return img
+    
+
+if __name__ == "__main__":
+    ...
