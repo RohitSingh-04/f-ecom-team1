@@ -109,6 +109,28 @@ class Visualize:
         plt.close()
         return img
     
+    @staticmethod
+    def user_role_distribution_graph(roles: list, count: list):
+        plt.figure(figsize=(10, 5))
+        plt.bar(roles, count, color="#009900")
+        plt.title('Types of users')
+        img = BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        plt.close()
+        return img
+
+    @staticmethod 
+    def generate_state_order_distribution_graph(states: list, count: list):
+        n =  len(states)
+        plt.figure(figsize=(20, 5+(n//10)))
+        plt.barh(states, count, color="#00FF00")
+        plt.title("States and Orders")
+        img = BytesIO()
+        plt.savefig(img, format='png')
+        img.seek(0)
+        plt.close()
+        return img
 
 if __name__ == "__main__":
     ...

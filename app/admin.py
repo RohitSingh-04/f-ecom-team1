@@ -259,6 +259,32 @@ def show_chart5():
 
     return render_template("show_graph.html", img = img, context = {"graph_name" : "Finantial Overview", "data" : [[dates[i], expenses[i], revenue[i], round(revenue[i]-expenses[i],2)] for i in range(len(dates))], "Attributes": ["Date", "Expenses", "Revenue", "Profits"]} )
 
+@admin.route('/chart6')
+@login_required
+@is_admin
+def show_chart6():
+    result = db.session.query(User.role, func.count(User.role)).group_by(User.role).all()
+    approved_delivery = db.session.query(func.count(User.role)).filter(User.approved == True, User.role == "delivery").first()
+    roles = [row[0] for row in result]
+    count = [row[1] for row in result]
+    roles.append("approved delivery")
+    roles.append("unapproved delivery")
+    count.append(approved_delivery[0])
+    count.append(count[1] - approved_delivery[0])
+    img = visualize.user_role_distribution_graph(roles, count)
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "User Roles Distributions", "data" : [[roles[i], count[i]] for i in range(len(roles))], "Attributes": ["Roles", "Count"]})
+
+@admin.route("/chart7")
+@login_required
+@is_admin
+def show_chart7():
+    state_order_counts = (db.session.query(User.state, func.count(Order.id).label("order_count")).join(Order, User.id == Order.customer_id).group_by(User.state).order_by(func.count(Order.id).desc()).all())
+    states = [row[0] for row in state_order_counts]
+    order_counts = [row[1] for row in state_order_counts]
+    img = visualize.generate_state_order_distribution_graph(states, order_counts)
+    img = base64.b64encode(img.getvalue()).decode('utf8')
+    return render_template('show_graph.html', img = img, context = {"graph_name" : "State Order Distribution", "data" : [[states[i], order_counts[i]] for i in range(len(states))], "Attributes": ["State", "Order Count"]})
 
 @admin.route('/get-stock-chart/<category>', methods = ["GET"])
 @login_required
@@ -284,26 +310,27 @@ def make_me_admin():
         db.session.commit()
     return redirect(url_for('views.home'))
 
-
+from .constants import STATES_CITY
 # Generate random data for users
 def generate_random_user_data():
     firstname = ''.join(random.choices(string.ascii_letters, k=8)).capitalize()
     lastname = ''.join(random.choices(string.ascii_letters, k=10)).capitalize()
     email = f"{firstname.lower()}.{lastname.lower()}@example.com"
     address_line_1 = f"{random.randint(1, 999)} {random.choice(['Main St', 'Second St', 'Broadway'])}"
-    state = random.choice(['State1', 'State2', 'State3', 'State4'])
-    city = random.choice(['CityA', 'CityB', 'CityC', 'CityD'])
-    role = "user"
+    state = random.choice(list(STATES_CITY.keys())[1:])
+    city = random.choice(list(STATES_CITY[state]))
+    role = random.choice(["user", "delivery"])
     pincode = f"{random.randint(10000, 99999)}"
+    approved = random.choice([True, False]) if role == "delivery" else False
     password = generate_password_hash('password123')  # You can change the password
-    return firstname, lastname, email, address_line_1, state, city, role, pincode, password
+    return firstname, lastname, email, address_line_1, state, city, role, pincode, password, approved
 
 # Helper function to generate random product data
 def generate_random_product_data():
     name = f"Product {''.join(random.choices(string.ascii_uppercase, k=3))}"
     price = round(random.uniform(10, 1000), 2)
     stock_quantity = random.randint(1, 100)
-    brand = random.choice(["BrandA", "BrandB", "BrandC"])
+    brand = random.choice(["zara", "Hnm", "Nike", "Adidas", "Puma", "Quechua"])
     size = random.choice(["Small", "Medium", "Large"])
     target_user = random.choice(["Men", "Women", "Kids"])
     type_ = random.choice(["Type1", "Type2", "Type3"])
@@ -311,7 +338,7 @@ def generate_random_product_data():
     description = "Lorem ipsum dolor sit amet."
     details = "Detailed description here."
     colour = random.choice(["Red", "Blue", "Green", "Black"])
-    category = random.choice(["Category1", "Category2", "Category3"])
+    category = random.choice(["Watches", "Womens Wears", "Mens Wears", "Assec", "Shoes"])
     return name, price, stock_quantity, brand, size, target_user, type_, image, description, details, colour, category
 
 #add dummy users
@@ -321,8 +348,8 @@ def generate_random_product_data():
 def addusers():
     dummy_users = []
     failed_users = []
-    for _ in range(100):
-        firstname, lastname, email, address_line_1, state, city, role, pincode, password = generate_random_user_data()
+    for _ in range(400):
+        firstname, lastname, email, address_line_1, state, city, role, pincode, password, approved = generate_random_user_data()
         user = User(
             firstname=firstname,
             lastname=lastname,
@@ -334,6 +361,7 @@ def addusers():
             pincode=pincode,
             password=password
         )
+        user.approved = approved
         try:
             db.session.add(user)
             db.session.commit()  # Commit inside try to catch IntegrityError
@@ -343,7 +371,7 @@ def addusers():
             failed_users.append(email)
 
     return jsonify({
-        "message": "100 dummy users attempted to be created.",
+        "message": "400 dummy users attempted to be created.",
         "created_users": dummy_users,
         "failed_users": failed_users
     })
@@ -359,7 +387,7 @@ def create_dummy_products():
 
     dummy_products = []
     
-    for _ in range(50):
+    for _ in range(100):
         name, price, stock_quantity, brand, size, target_user, type_, image, description, details, colour, category = generate_random_product_data()
         product = Product(name=name, price=price, stock_quantity=stock_quantity, brand=brand, size=size,
                           target_user=target_user, type=type_, image=image, description=description,
@@ -380,7 +408,7 @@ def create_dummy_products():
 @is_admin
 def create_dummy_orders():
     # Get all users and products to pick from randomly
-    users = User.query.all()
+    users = User.query.filter_by(role = "user").all()
     products = Product.query.all()
 
     if not users or not products:
@@ -396,7 +424,7 @@ def create_dummy_orders():
     for delta in range(91):  # Generate orders for each day in the last 3 months
         order_date = start_date + timedelta(days=delta)
         
-        for _ in range(random.randint(30, 40)):  # 30 to 40 orders per day
+        for _ in range(random.randint(20, 30)):  # 20 to 30 orders per day
             # Randomly select a user and a product
             customer = random.choice(users)
             product = random.choice(products)

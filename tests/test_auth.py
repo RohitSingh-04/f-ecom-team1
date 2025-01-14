@@ -3,7 +3,6 @@ from flask_testing import TestCase
 from main import create_app, db, models
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
-from flask import Flask, session, get_flashed_messages
 from app.models import User
 
 class TestSignupPage(TestCase):
@@ -30,7 +29,7 @@ class TestSignupPage(TestCase):
         self.assertIn(b'name="email"', response.data)
         self.assertIn(b'name="password"', response.data)
         self.assertIn(b'name="confirm_password"', response.data)
-        self.assertIn(b'name="address"', response.data)
+        self.assertIn(b'name="address_line_1"', response.data)
         self.assertIn(b'name="state"', response.data)
         self.assertIn(b'name="city"', response.data)
         self.assertIn(b'name="role"', response.data)
