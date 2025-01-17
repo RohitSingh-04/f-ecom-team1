@@ -263,14 +263,12 @@ def show_chart5():
 @login_required
 @is_admin
 def show_chart6():
-    result = db.session.query(User.role, func.count(User.role)).group_by(User.role).all()
+    result = db.session.query(User.role, func.count(User.role)).filter(User.role.in_(["user", "admin"])).group_by(User.role).all()
     approved_delivery = db.session.query(func.count(User.role)).filter(User.approved == True, User.role == "delivery").first()
     roles = [row[0] for row in result]
     count = [row[1] for row in result]
-    roles.append("approved delivery")
-    roles.append("unapproved delivery")
+    roles.append("delivery")
     count.append(approved_delivery[0])
-    count.append(count[1] - approved_delivery[0])
     img = visualize.user_role_distribution_graph(roles, count)
     img = base64.b64encode(img.getvalue()).decode('utf8')
     return render_template('show_graph.html', img = img, context = {"graph_name" : "User Roles Distributions", "data" : [[roles[i], count[i]] for i in range(len(roles))], "Attributes": ["Roles", "Count"]})
